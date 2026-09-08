@@ -39,11 +39,13 @@
   when: ansible_facts.os_family == 'Archlinux'
 
 - name: Install rootless container support packages (Arch)
+  # No `creates:` sentinel: same trap as the base-packages installer — newuidmap
+  # ships in the `shadow` package on Arch, so the sentinel would fire on any
+  # box that has shadow installed (i.e. every box), silently skipping the
+  # `passt` install and breaking rootless podman's pasta network backend.
   command: >
     pacman -S --noconfirm --needed
     uidmap passt
-  args:
-    creates: /usr/bin/newuidmap
   when: ansible_facts.os_family == 'Archlinux'
 
 # containers/image's default signature policy: trust everything. This is the

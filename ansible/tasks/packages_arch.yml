@@ -19,11 +19,16 @@
   when: ansible_facts.os_family == 'Archlinux'
 
 - name: Install base packages (Arch)
+  # No `creates:` sentinel: the previous /usr/bin/git sentinel was too
+  # aggressive — git can exist on the box from a prior install path (e.g.
+  # provision.sh's own apt-equivalent step or distro base), in which case
+  # pacman skipped and the OTHER packages in the list (ca-certificates,
+  # gnupg, fuse3, …) silently never got installed. `--needed` is already
+  # idempotent (skips packages already at latest), so we let pacman run
+  # every time and trust it to no-op when nothing has changed.
   command: >
     pacman -S --noconfirm --needed
     git curl wget openssh ca-certificates gnupg fuse3
-  args:
-    creates: /usr/bin/git
   when: ansible_facts.os_family == 'Archlinux'
 
 # JuiceFS mounts the archive tier with -o allow_other so apps running under
