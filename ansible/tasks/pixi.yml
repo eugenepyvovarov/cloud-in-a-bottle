@@ -36,11 +36,33 @@
     path: /etc/systemd/resolved.conf.d
     state: directory
 
-- name: Disable systemd-resolved stub listener (frees port 53 for coredns)
+# In TLS mode the install's CoreDNS container-facing view binds 10.200.0.1:53
+# (the openhost0 dummy interface) so apps can resolve sibling-app hostnames via
+# that gateway. systemd-resolved's stub must stay out of the way, so we set
+# DNSStubListener=no and free 53 for CoreDNS.
+#
+# In HTTP-only mode CoreDNS doesn't run, so 10.200.0.1:53 has no listener.
+# Every app container is launched with `--dns 10.200.0.1` (hard-coded in
+# compute_space.core.containers.run_container), so without a listener there
+# every container DNS lookup fails — which manifested on the dashboard as
+# `fetch failed: ... lookup raw.githubusercontent.com on 10.200.0.1:53:
+# connection refused` whenever an app tried to reach the public internet
+# (e.g. the catalog fetching its source feed). Re-enable systemd-resolved's
+# stub listener only on 10.200.0.1 in HTTP-only mode so containers can
+# resolve via the host's normal upstream DNS, while 127.0.0.53 stays free
+# for the day someone flips this box to TLS mode.
+- name: Configure systemd-resolved for container DNS
   become: yes
   become_user: root
   copy:
-    content: "[Resolve]\nDNSStubListener=no\n"
+    content: |
+      [Resolve]
+      {% if local_http_only | default(false) | bool %}
+      DNSStubListener=no
+      DNSStubListenerExtra=10.200.0.1
+      {% else %}
+      DNSStubListener=no
+      {% endif %}
     dest: /etc/systemd/resolved.conf.d/no-stub.conf
   register: resolved_conf
 
