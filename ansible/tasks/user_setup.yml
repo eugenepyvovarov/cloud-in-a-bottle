@@ -2,11 +2,19 @@
 # Create host user, copy SSH keys, harden sshd.
 # Runs as root (or initial_user).
 
+# Debian/Ubuntu's elevated-privileges group is `sudo`; Arch's is `wheel`.
+# We pick the right one so the SSH-based setup.yml/prebake.yml flows grant the
+# expected privilege. provision.sh has its own bash-level detection for the
+# create-on-localhost flow.
+- name: "Resolve admin group name (Debian=sudo, Arch=wheel)"
+  set_fact:
+    _admin_group: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+
 - name: Create host user
   user:
     name: host
     shell: /bin/bash
-    groups: sudo
+    groups: "{{ _admin_group }}"
     append: yes
 
 - name: Allow passwordless sudo
@@ -59,5 +67,5 @@
 
 - name: Restart SSH
   service:
-    name: ssh
+    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
     state: restarted

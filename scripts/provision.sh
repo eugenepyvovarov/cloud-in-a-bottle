@@ -1,24 +1,50 @@
 #!/usr/bin/env bash
-# provision.sh — Bootstrap a fresh Ubuntu 24.04 server into a running Cloud in a Bottle instance.
+# provision.sh — Bootstrap a fresh server into a running Cloud in a Bottle instance.
 #
 # Usage (run as root on the target server):
 #   curl -fsSL https://raw.githubusercontent.com/cloud-in-a-bottle/cloud-in-a-bottle/main/scripts/provision.sh | sudo bash -s -- --domain myhost.example.com
 #
 # Prerequisites:
-#   - Fresh Ubuntu 24.04 server with root access
-#   - DNS A record: <domain> -> server IP
-#   - DNS NS + A records for subdomain delegation (see docs)
+#   - Fresh Ubuntu 24.04 OR Arch Linux server with root access
+#   - DNS A record: <domain> -> server IP (TLS mode)
+#   - DNS NS + A records for subdomain delegation (TLS mode, see docs)
 #
 # What it does:
 #   1. Creates the 'host' user with SSH keys from root
-#   2. Installs ansible-core and git
-#   3. Clones the openhost repository
-#   4. Runs ansible/local_setup.yml (reuses the same tasks as remote setup.yml)
-#   5. Generates an ACME account key for TLS certificates
+#   2. Installs ansible-core and git (apt on Debian/Ubuntu, pacman on Arch)
+#   3. Clones the Cloud in a Bottle repository
+#   4. Runs ansible/local_setup.yml (distro-aware: dispatches apt vs pacman)
+#   5. Generates an ACME account key for TLS certificates (TLS mode only)
 #
-# The ansible playbook handles: apt packages, podman, pixi, config, systemd service.
+# The ansible playbook handles: distro-specific packages, podman, pixi, config, systemd service.
 
 set -euo pipefail
+
+# ---- Distro detection ----
+# Sources /etc/os-release (present on every modern systemd distro, both
+# Debian-family and Arch). Must run BEFORE the useradd step below so we know
+# which elevated-privileges group to put the host user in.
+if [ -r /etc/os-release ]; then
+    . /etc/os-release
+    case "${ID:-unknown}" in
+        ubuntu|debian)
+            OS_FAMILY="debian"
+            ADMIN_GROUP="sudo"
+            ;;
+        arch|archarm|archlinux)
+            OS_FAMILY="arch"
+            ADMIN_GROUP="wheel"
+            ;;
+        *)
+            echo "Error: unsupported distro: ID=${ID:-unknown} (ID_LIKE=${ID_LIKE:-n/a})"
+            echo "       Supported: Ubuntu 24.04, Debian, Arch Linux."
+            exit 1
+            ;;
+    esac
+else
+    echo "Error: /etc/os-release not found; can't detect distro."
+    exit 1
+fi
 
 DOMAIN=""
 BRANCH="main"
@@ -110,14 +136,15 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "=== Cloud in a Bottle Provisioning ==="
-echo "  Domain: $DOMAIN"
-echo "  Branch: $BRANCH"
+echo "  Distro:   ${PRETTY_NAME:-$ID}"
+echo "  Domain:   $DOMAIN"
+echo "  Branch:   $BRANCH"
 echo ""
 
 # ---- Create host user ----
 if ! id -u host >/dev/null 2>&1; then
     echo "--- Creating host user ---"
-    useradd -m -s /bin/bash -G sudo host
+    useradd -m -s /bin/bash -G "$ADMIN_GROUP" host
     echo "host ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/host
     chmod 0440 /etc/sudoers.d/host
 
@@ -131,10 +158,17 @@ if ! id -u host >/dev/null 2>&1; then
     fi
 fi
 
-# ---- Install prerequisites ----
-echo "--- Installing ansible and git ---"
-apt-get update -qq
-apt-get install -y -qq ansible-core git > /dev/null 2>&1
+# ---- Install prerequisites (distro-aware) ----
+echo "--- Installing ansible-core and git ---"
+if [ "$OS_FAMILY" = "debian" ]; then
+    apt-get update -qq
+    apt-get install -y -qq ansible-core git > /dev/null 2>&1
+else
+    # Refresh pacman DB so we install against current package versions
+    # without performing a full system upgrade.
+    pacman -Sy --noconfirm > /dev/null 2>&1
+    pacman -S --noconfirm --needed ansible-core git > /dev/null 2>&1
+fi
 HOME=/root git config --global --replace-all http.version HTTP/1.1
 su host -c "git config --global --replace-all http.version HTTP/1.1"
 

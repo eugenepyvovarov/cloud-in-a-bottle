@@ -5,6 +5,7 @@
   apt:
     update_cache: yes
     cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
 
 # dist-upgrade takes 7-10 min on a fresh Ubuntu image and is the slowest
 # step by far.  For ephemeral CI instances that are torn down after a single
@@ -12,9 +13,11 @@
 - name: Upgrade all packages
   apt:
     upgrade: dist
-  when: not (skip_apt_upgrade | default(false) | bool)
+  when:
+    - ansible_os_family == 'Debian'
+    - not (skip_apt_upgrade | default(false) | bool)
 
-- name: Install base packages
+- name: Install base packages (Debian/Ubuntu)
   apt:
     name:
       - git
@@ -29,15 +32,17 @@
       # archive backend can't fail-to-mount on a stripped image.
       - fuse3
     state: present
+  when: ansible_os_family == 'Debian'
 
 # JuiceFS mounts the archive tier with -o allow_other so apps
 # running under rootless-podman's subuid namespace can traverse
 # it.  fusermount refuses allow_other unless this option is set
 # in /etc/fuse.conf.  Idempotent.
-- name: Enable user_allow_other in /etc/fuse.conf
+- name: Enable user_allow_other in /etc/fuse.conf (Debian/Ubuntu)
   lineinfile:
     path: /etc/fuse.conf
     regexp: '^#?\s*user_allow_other\s*$'
     line: 'user_allow_other'
     state: present
     create: false
+  when: ansible_os_family == 'Debian'

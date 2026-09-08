@@ -6,7 +6,9 @@ Cloud in a Bottle installs directly on the host. It runs various system services
 
 ## Prerequisites
 
-- Ubuntu 24.04 on the target machine, freshly installed.
+- Ubuntu 24.04 on the target machine, freshly installed. Arch Linux is also
+  supported by the same install command (the provisioner auto-detects from
+  `/etc/os-release` and adapts package install + sudo group).
 - SSH access as `root`, or as a user with sudo.
 - A root filesystem supporting idmapped mounts (ext4, xfs, or btrfs). Install fails early with a clear error if it does not.
 

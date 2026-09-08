@@ -1,0 +1,18 @@
+---
+# Base packages dispatcher.
+#
+# Replaces direct imports of apt_packages.yml so we can support both
+# Debian/Ubuntu and Arch from one entry point. Each branch imports a
+# per-distro file that knows the right package manager, package names,
+# and distro quirks (fuse.conf creation on Arch, dist-upgrade on Ubuntu).
+# Wrong-distro branches are unreachable thanks to the `when:` gates.
+#
+# To add a new distro: add a packages_<distro>.yml file and a branch here.
+
+- name: Install base packages (Debian/Ubuntu)
+  include_tasks: packages_debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install base packages (Arch)
+  include_tasks: packages_arch.yml
+  when: ansible_os_family == 'Archlinux'

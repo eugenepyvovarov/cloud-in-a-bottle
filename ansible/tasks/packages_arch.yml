@@ -1,0 +1,50 @@
+---
+# Install base packages on Arch Linux. Runs with become: yes.
+#
+# Mirror of packages_debian.yml for Arch. pacman is atomic per package and
+# supports --needed (skips already-current versions), so this is idempotent
+# without an apt-style `state: present`. The `creates:` sentinel makes
+# ansible skip the command entirely on subsequent runs so a re-provision is
+# a no-op. Provisioning is a one-shot; if an operator later removes one of
+# these packages, they can rerun `pacman -S --needed <pkg>` themselves.
+#
+# No `pacman -Syu` here. A installer-triggered dist-upgrade is not the right
+# place to roll the kernel or break a running box; operators update Arch
+# on their own schedule. `pacman -Sy` (no -u) refreshes the package DB so
+# we install against current package versions without upgrading the system.
+
+- name: Refresh pacman package database (Arch)
+  command: pacman -Sy --noconfirm
+  changed_when: false
+  when: ansible_os_family == 'Archlinux'
+
+- name: Install base packages (Arch)
+  command: >
+    pacman -S --noconfirm --needed
+    git curl wget openssh ca-certificates gnupg fuse3
+  args:
+    creates: /usr/bin/git
+  when: ansible_os_family == 'Archlinux'
+
+# JuiceFS mounts the archive tier with -o allow_other so apps running under
+# rootless-podman's subuid namespace can traverse it. fusermount refuses
+# allow_other unless this option is set in /etc/fuse.conf. Ubuntu's `fuse3`
+# package ships /etc/fuse.conf by default; Arch's does not, so we ensure the
+# file exists before touching it. Idempotent.
+- name: Ensure /etc/fuse.conf exists (Arch)
+  copy:
+    content: ""
+    dest: /etc/fuse.conf
+    force: no
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_os_family == 'Archlinux'
+
+- name: Enable user_allow_other in /etc/fuse.conf (Arch)
+  lineinfile:
+    path: /etc/fuse.conf
+    regexp: '^#?\s*user_allow_other\s*$'
+    line: 'user_allow_other'
+    state: present
+  when: ansible_os_family == 'Archlinux'

@@ -2,7 +2,11 @@
 ## prerequisites
 
 - ansible installed locally: `uv tool install ansible-core` or however you like.
-- a fresh ubuntu 24.04 server with root SSH access
+- a fresh ubuntu 24.04 OR Arch Linux server with root SSH access. the
+  playbooks detect the OS via `ansible_os_family` and switch package manager
+  (apt vs pacman) + admin group (sudo vs wheel) + container policy file
+  source accordingly. New distros add a new branch in `tasks/base_packages.yml`,
+  `tasks/containers.yml`, and `tasks/dev_machine.yml`.
 - DNS records pointing your domain (and `*.domain`) to the server IP
     - NS record host.example.com -> ns1.host.example.com
     - A record ns1.host.example.com -> machine IP

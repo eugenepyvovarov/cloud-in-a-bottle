@@ -1,0 +1,20 @@
+---
+# Dev packages for Arch Linux. Dispatched from dev_machine.yml.
+#
+# Arch ships `vim` and `tmux` in extra, `htop` and `iftop` in extra, `git`
+# in core. mosh is in extra. All installed names match Debian's, so a
+# ~/.tmux.conf or ~/.vimrc is portable across both.
+
+- name: Refresh pacman package database (Arch, dev env)
+  command: pacman -Sy --noconfirm
+  changed_when: false
+  when: ansible_os_family == 'Archlinux'
+
+- name: Install dev packages (Arch)
+  become: yes
+  command: >
+    pacman -S --noconfirm --needed
+    mosh git htop iftop vim tmux
+  args:
+    creates: /usr/bin/tmux
+  when: ansible_os_family == 'Archlinux'

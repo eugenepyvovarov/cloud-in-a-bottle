@@ -1,17 +1,15 @@
 ---
-# Dev tools and dotfiles for the host user. Runs as host with become for apt.
+# Dev tools and dotfiles for the host user. Dispatches package install to
+# the right per-distro file; the dotfiles copy is distro-agnostic and lives
+# here.
 
-- name: Install dev packages
-  become: yes
-  apt:
-    name:
-      - mosh
-      - git
-      - htop
-      - iftop
-      - vim
-      - tmux
-    state: present
+- name: Install dev packages (Debian/Ubuntu)
+  include_tasks: dev_packages_debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install dev packages (Arch)
+  include_tasks: dev_packages_arch.yml
+  when: ansible_os_family == 'Archlinux'
 
 - name: Copy dotfiles
   copy:

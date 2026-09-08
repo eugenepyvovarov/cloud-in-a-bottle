@@ -9,8 +9,12 @@
       - podman
       - crun
     state: absent
+  when: ansible_os_family == 'Debian'
 
-- name: Install rootless container support packages
+# On Debian/Ubuntu, `golang-github-containers-common` provides /etc/containers/policy.json
+# (the default signature policy podman reads on every pull). Without it, image pulls fail
+# with "no policy.json file found".
+- name: Install rootless container support packages (Debian/Ubuntu)
   apt:
     name:
       # newuidmap/newgidmap — setuid root, can't ship via pixi.
@@ -23,6 +27,43 @@
       - golang-github-containers-common
     state: present
     update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+# Arch has no `containers-common` package in the official repos. The pacman
+# packages below provide the bits that have to live on the host (setuid
+# binaries for rootless uidmaps, pasta for podman 5's network backend). The
+# policy.json that Debian gets via containers-common is written below.
+- name: Refresh pacman package database (Arch, containers)
+  command: pacman -Sy --noconfirm
+  changed_when: false
+  when: ansible_os_family == 'Archlinux'
+
+- name: Install rootless container support packages (Arch)
+  command: >
+    pacman -S --noconfirm --needed
+    uidmap passt
+  args:
+    creates: /usr/bin/newuidmap
+  when: ansible_os_family == 'Archlinux'
+
+# containers/image's default signature policy: trust everything. This is the
+# same default containers-common ships on Debian/Ubuntu and is the minimum
+# needed for an unauthenticated `podman pull docker.io/library/alpine` to
+# succeed. Operators who want signature verification can override it after
+# install.
+- name: Write /etc/containers/policy.json (Arch)
+  copy:
+    content: |
+      {
+          "default": [
+              {
+                  "type": "insecureAcceptAnything"
+              }
+          ]
+      }
+    dest: /etc/containers/policy.json
+    mode: "0644"
+  when: ansible_os_family == 'Archlinux'
 
 # `podman run --restart=...` containers die with the user's systemd manager when the last login session ends, so
 # the host user needs lingering enabled.
@@ -40,8 +81,10 @@
 # apps.  Must match compute_space.core.manifest.UNPRIVILEGED_PORT_FLOOR.
 #
 # kernel.apparmor_restrict_unprivileged_userns = 0: Ubuntu 24.04 blocks unprivileged user namespaces unless the
-# binary has an AppArmor profile.  apt podman shipped one; conda-forge podman doesn't
-- name: Configure podman-related sysctls
+# binary has an AppArmor profile.  apt podman shipped one; conda-forge podman doesn't. This
+# kernel sysctl is AppArmor-specific and does not exist on Arch (whose kernel is built without
+# AppArmor by default), so we only set it on Debian.
+- name: Configure podman-related sysctls (Debian/Ubuntu)
   copy:
     content: |
       # Managed by Cloud in a Bottle; do not edit by hand.
@@ -53,6 +96,22 @@
       net.ipv4.ip_forward = 1
     dest: /etc/sysctl.d/90-openhost-podman.conf
     mode: "0644"
+  when: ansible_os_family == 'Debian'
+
+- name: Configure podman-related sysctls (Arch)
+  copy:
+    content: |
+      # Managed by Cloud in a Bottle; do not edit by hand.
+      # Arch's kernel is built without AppArmor, so no apparmor_restrict_unprivileged_userns
+      # line — that sysctl doesn't exist on this kernel.
+      net.ipv4.ip_unprivileged_port_start = 25
+      # Required for network_host containers that do IP forwarding (VPN
+      # servers).  With --network=host, /proc/sys is read-only inside the
+      # container so the app can't set this itself.
+      net.ipv4.ip_forward = 1
+    dest: /etc/sysctl.d/90-openhost-podman.conf
+    mode: "0644"
+  when: ansible_os_family == 'Archlinux'
 
 - name: Apply podman sysctls
   command: sysctl -p /etc/sysctl.d/90-openhost-podman.conf

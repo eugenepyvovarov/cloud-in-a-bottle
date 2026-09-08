@@ -1,0 +1,15 @@
+---
+# Dev packages for Debian/Ubuntu. Dispatched from dev_machine.yml.
+
+- name: Install dev packages (Debian/Ubuntu)
+  become: yes
+  apt:
+    name:
+      - mosh
+      - git
+      - htop
+      - iftop
+      - vim
+      - tmux
+    state: present
+  when: ansible_os_family == 'Debian'
