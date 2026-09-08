@@ -5,7 +5,7 @@
   apt:
     update_cache: yes
     cache_valid_time: 3600
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'
 
 # dist-upgrade takes 7-10 min on a fresh Ubuntu image and is the slowest
 # step by far.  For ephemeral CI instances that are torn down after a single
@@ -14,7 +14,7 @@
   apt:
     upgrade: dist
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_facts.os_family == 'Debian'
     - not (skip_apt_upgrade | default(false) | bool)
 
 - name: Install base packages (Debian/Ubuntu)
@@ -32,7 +32,7 @@
       # archive backend can't fail-to-mount on a stripped image.
       - fuse3
     state: present
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'
 
 # JuiceFS mounts the archive tier with -o allow_other so apps
 # running under rootless-podman's subuid namespace can traverse
@@ -45,4 +45,4 @@
     line: 'user_allow_other'
     state: present
     create: false
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'

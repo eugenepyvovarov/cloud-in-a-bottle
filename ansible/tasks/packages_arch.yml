@@ -16,7 +16,7 @@
 - name: Refresh pacman package database (Arch)
   command: pacman -Sy --noconfirm
   changed_when: false
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
 
 - name: Install base packages (Arch)
   command: >
@@ -24,7 +24,7 @@
     git curl wget openssh ca-certificates gnupg fuse3
   args:
     creates: /usr/bin/git
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
 
 # JuiceFS mounts the archive tier with -o allow_other so apps running under
 # rootless-podman's subuid namespace can traverse it. fusermount refuses
@@ -39,7 +39,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
 
 - name: Enable user_allow_other in /etc/fuse.conf (Arch)
   lineinfile:
@@ -47,4 +47,4 @@
     regexp: '^#?\s*user_allow_other\s*$'
     line: 'user_allow_other'
     state: present
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'

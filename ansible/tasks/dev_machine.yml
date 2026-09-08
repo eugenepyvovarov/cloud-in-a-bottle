@@ -5,11 +5,11 @@
 
 - name: Install dev packages (Debian/Ubuntu)
   include_tasks: dev_packages_debian.yml
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'
 
 - name: Install dev packages (Arch)
   include_tasks: dev_packages_arch.yml
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
 
 - name: Copy dotfiles
   copy:

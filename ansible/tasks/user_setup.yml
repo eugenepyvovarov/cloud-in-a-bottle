@@ -8,7 +8,7 @@
 # create-on-localhost flow.
 - name: "Resolve admin group name (Debian=sudo, Arch=wheel)"
   set_fact:
-    _admin_group: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+    _admin_group: "{{ 'sudo' if ansible_facts.os_family == 'Debian' else 'wheel' }}"
 
 - name: Create host user
   user:
@@ -67,5 +67,5 @@
 
 - name: Restart SSH
   service:
-    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+    name: "{{ 'ssh' if ansible_facts.os_family == 'Debian' else 'sshd' }}"
     state: restarted

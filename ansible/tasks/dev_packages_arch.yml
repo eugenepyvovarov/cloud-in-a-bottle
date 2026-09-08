@@ -8,7 +8,7 @@
 - name: Refresh pacman package database (Arch, dev env)
   command: pacman -Sy --noconfirm
   changed_when: false
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
 
 - name: Install dev packages (Arch)
   become: yes
@@ -17,4 +17,4 @@
     mosh git htop iftop vim tmux
   args:
     creates: /usr/bin/tmux
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'

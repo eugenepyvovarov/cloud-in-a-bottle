@@ -11,8 +11,8 @@
 
 - name: Install base packages (Debian/Ubuntu)
   include_tasks: packages_debian.yml
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts.os_family == 'Debian'
 
 - name: Install base packages (Arch)
   include_tasks: packages_arch.yml
-  when: ansible_os_family == 'Archlinux'
+  when: ansible_facts.os_family == 'Archlinux'
