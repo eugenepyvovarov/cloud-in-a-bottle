@@ -43,9 +43,14 @@
   # ships in the `shadow` package on Arch, so the sentinel would fire on any
   # box that has shadow installed (i.e. every box), silently skipping the
   # `passt` install and breaking rootless podman's pasta network backend.
+  #
+  # `uidmap` is NOT a separate Arch package — newuidmap / newgidmap live in
+  # `shadow` (which is a base dependency of basically every install). We just
+  # need `passt` for podman's pasta network backend. The Debian side still
+  # installs `uidmap` because Debian ships it as its own package.
   command: >
     pacman -S --noconfirm --needed
-    uidmap passt
+    passt
   when: ansible_facts.os_family == 'Archlinux'
 
 # containers/image's default signature policy: trust everything. This is the
