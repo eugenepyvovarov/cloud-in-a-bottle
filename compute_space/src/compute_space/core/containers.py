@@ -216,9 +216,19 @@ def build_image(
     """
     image_tag = f"openhost-{app_name}:latest"
     dockerfile_path = os.path.join(repo_path, dockerfile_rel_path)
+    # Force native arm64 builds. On an aarch64 host podman auto-detects
+    # the host arch anyway, but explicit --platform=linux/arm64 makes the
+    # intent load-bearing: any future FROM image without an arm64 variant
+    # fails fast here with a clear "no image available" error from the
+    # registry, instead of silently pulling an x86_64 manifest and then
+    # dying later when a RUN step exec's an x86_64 binary (which on this
+    # host returns exit 126, since qemu-user-binfmt is intentionally not
+    # installed to keep chess Stockfish and similar hot-path binaries
+    # running natively).
     cmd = [
         "podman",
         "build",
+        "--platform=linux/arm64",
         "-t",
         image_tag,
         "-f",
